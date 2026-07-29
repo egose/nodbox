@@ -3,6 +3,9 @@
   "version": "0.3.2",
   "description": "Docker Image packaging for Nodbox; a tiny container to run JavaScript code",
   "main": "entrypoint.js",
+  "scripts": {
+    "test": "node --test"
+  },
   "author": "Junmin Ahn",
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

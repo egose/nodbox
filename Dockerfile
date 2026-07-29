@@ -1,13 +1,11 @@
-FROM alpine
+FROM node:22-alpine3.22
 
 LABEL maintainer="Junmin Ahn <junminahn@outlook.com>"
 
-RUN apk add --update nodejs &&\
-    apk add --update npm
+WORKDIR /app
 
-COPY entrypoint.js entrypoint.js
+COPY --chown=node:node entrypoint.js /app/entrypoint.js
 
-RUN addgroup -S node && adduser -S node -G node
 USER node
 
-ENTRYPOINT ["node", "./entrypoint.js"]
+ENTRYPOINT ["node", "/app/entrypoint.js"]
