@@ -7,90 +7,110 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
-      - uses: hmarr/debug-action@v2
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install asdf
-        uses: asdf-vm/actions/setup@v1
-      - name: Cache tools
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/.asdf
-          key: ${{ runner.os }}-${{ hashFiles('**/.tool-versions') }}
-      - name: Install tools
+      - name: Install release tools
         run: |
-          while IFS= read -r line; do
-              tool=$(echo $line | cut -f 1 -d ' ')
-              vers=$(echo $line | cut -f 2 -d ' ')
-              asdf plugin-add $tool || true
-              asdf install $tool $vers
-              asdf plugin-update $tool
-          done <<< $(sed -nr '/git-chglog|semtag/p' .tool-versions)
-          asdf reshim
+          npm install --global semtag@0.1.1
 
-      - name: Check PR labels
-        id: prLabels
-        uses: shioyang/check-pr-labels-on-push-action@v1.0.3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          labels: '["release_candidate"]'
+          mkdir -p "$HOME/.local/bin"
+          cat > "$HOME/.local/bin/git-chglog" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec docker run --rm \
+            -v "$PWD:/workdir" \
+            -w /workdir \
+            quay.io/git-chglog/git-chglog:0.14.2 "$@"
+          EOF
+
+          chmod +x "$HOME/.local/bin/git-chglog"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Detect release candidate
+        id: releaseMode
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          has_label=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+            --jq 'if any(.[]; any(.labels[]?; .name == "release_candidate")) then "true" else "false" end')
+
+          echo "is_release_candidate=$has_label" >> "$GITHUB_OUTPUT"
 
       - name: Update Changelog
         id: nextver
-        if: steps.prLabels.outputs.result == 'false'
+        if: steps.releaseMode.outputs.is_release_candidate == 'false'
         run: |
           make changelog_next
-          make bump_next_version
           nextver=$(make bump_next_version)
-          echo "::set-output name=value::$nextver"
+          echo "value=$nextver" >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
-        if: steps.prLabels.outputs.result == 'false'
-        id: cpr
-        uses: peter-evans/create-pull-request@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          signoff: false
-          branch: chore/release
-          base: main
-          delete-branch: true
-          title: "chore(${{ steps.nextver.outputs.value }}): bump version and update changelog"
-          commit-message: "chore(${{ steps.nextver.outputs.value }}): bump version and update changelog"
-          body: |
-            - bump package version (${{ steps.nextver.outputs.value }})
-            - update changelog
-          labels: |
-            release_candidate
-          team-reviewers: |
-            owners
-            maintainers
-          draft: false
+        if: steps.releaseMode.outputs.is_release_candidate == 'false'
+        id: releasePr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch="chore/release-${{ steps.nextver.outputs.value }}"
+          title="chore(${{ steps.nextver.outputs.value }}): bump version and update changelog"
+          body=$(cat <<'EOF'
+          - bump package version (${{ steps.nextver.outputs.value }})
+          - update changelog
+          EOF
+          )
+
+          if git diff --quiet; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add CHANGELOG.md package.json
+          git commit -m "$title"
+          git push --set-upstream origin "$branch"
+
+          pr_url=$(gh pr create --base main --head "$branch" --title "$title" --body "$body")
+          pr_number=$(gh pr view "$pr_url" --json number --jq '.number')
+
+          gh pr edit "$pr_url" --add-label release_candidate
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/requested_reviewers" \
+            -f team_reviewers[]=owners \
+            -f team_reviewers[]=maintainers || true
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "url=$pr_url" >> "$GITHUB_OUTPUT"
 
       - name: Push Tag
-        if: steps.prLabels.outputs.result == 'true'
+        if: steps.releaseMode.outputs.is_release_candidate == 'true'
         run: |
           make release
 
       - name: Get Version
         id: lastver
-        if: steps.prLabels.outputs.result == 'true'
+        if: steps.releaseMode.outputs.is_release_candidate == 'true'
         run: |
           lastver=$(semtag getlast)
-          echo "::set-output name=value::$lastver"
+          echo "value=$lastver" >> "$GITHUB_OUTPUT"
 
       - name: Release Tag
-        if: steps.prLabels.outputs.result == 'true'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GH_SECRET }}
-          script: |
-            github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: '${{ steps.lastver.outputs.value }}',
-              name: '${{ steps.lastver.outputs.value }}',
-            })
+        if: steps.releaseMode.outputs.is_release_candidate == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.lastver.outputs.value }}" \
+            --title "${{ steps.lastver.outputs.value }}"
