@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: nodbox
-          image: ghcr.io/junminahn/nodbox:latest
+          image: ghcr.io/egose/nodbox:latest
           imagePullPolicy: Always
           args:
             - |
