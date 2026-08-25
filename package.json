@@ -1,6 +1,6 @@
 {
   "name": "nodbox",
-  "version": "0.3.2",
+  "version": "0.4.1",
   "description": "Docker Image packaging for Nodbox; a tiny container to run JavaScript code",
   "main": "entrypoint.js",
   "scripts": {
