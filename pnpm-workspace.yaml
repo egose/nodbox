@@ -1,0 +1,4 @@
+allowBuilds:
+  esbuild: false
+minimumReleaseAgeExclude:
+- '@repo-toolkit/changelog@0.1.0 || 0.2.0'

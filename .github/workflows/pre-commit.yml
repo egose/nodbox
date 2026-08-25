@@ -1,0 +1,27 @@
+name: Check code/commit conventions
+
+on: push
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+    - name: Setup Tools
+      uses: ./.github/actions/setup-tools
+
+    - name: Setup NPM Packages
+      uses: ./.github/actions/setup-npm
+
+    - name: Run pre-commit
+      uses: egose/actions/pre-commit@7a010fcf15d592c751df049c071db109b3e4e6eb
+      with:
+        config: .pre-commit-config.yaml
+        commit-on-push: true
+        commit-on-pr: false
