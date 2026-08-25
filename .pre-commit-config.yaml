@@ -1,18 +1,50 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
-    hooks:
-      - id: check-added-large-files
-      - id: check-case-conflict
-      - id: check-executables-have-shebangs
-        files: \.sh
-      - id: check-json
-      - id: check-vcs-permalinks
-      - id: check-yaml
-      - id: end-of-file-fixer
-      - id: trailing-whitespace
-      - id: check-merge-conflict
-  - repo: https://github.com/jorisroovers/gitlint
-    rev: v0.17.0
-    hooks:
-      - id: gitlint
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # pragma: allowlist secret; frozen: v6.0.0
+  hooks:
+  - id: check-case-conflict
+  - id: check-executables-have-shebangs
+    files: \.sh
+  - id: check-json
+  - id: check-vcs-permalinks
+  - id: check-yaml
+  - id: check-ast
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+- repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+  rev: 4380fbb73a154b5f5624794c1c78d9719ccc860f  # pragma: allowlist secret; frozen: v2.16.0
+  hooks:
+  - id: pretty-format-yaml
+    args: [--autofix, --indent, '2']
+- repo: local
+  hooks:
+  - id: prettier
+    name: prettier
+    entry: .bin/prettier.sh
+    language: script
+    pass_filenames: true
+    require_serial: true
+    files: \.(ts|tsx|js|jsx|json|css|scss|md|html|yaml|yml)$
+    exclude: .git/COMMIT_EDITMSG
+  - id: eslint
+    name: eslint
+    entry: .bin/eslint.sh
+    language: script
+    pass_filenames: true
+    require_serial: true
+    exclude: .git/COMMIT_EDITMSG
+  - id: commitlint
+    name: commitlint
+    entry: .bin/commitlint.sh
+    language: script
+    verbose: true
+    pass_filenames: false
+    stages: [commit-msg]
+
+exclude: |
+  (?x)^(
+    CHANGELOG\.md |
+    (.*/)?package-lock\.json |
+    (.*/)?yarn\.lock |
+    (.*/)?pnpm-lock\.yaml
+  )$
