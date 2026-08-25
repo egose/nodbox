@@ -1,0 +1,12 @@
+name: Setup NPM Packages
+description: Setup required NPM packages with caching for pnpm
+runs:
+  using: composite
+  steps:
+  - name: Setup Tools
+    uses: egose/actions/pnpm-packages@7a010fcf15d592c751df049c071db109b3e4e6eb
+    with:
+      frozen: 'true'
+      ignore-scripts: 'true'
+      paths: |
+        .

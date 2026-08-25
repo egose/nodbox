@@ -1,6 +1,6 @@
 FROM node:22-alpine3.22
 
-LABEL maintainer="Junmin Ahn <junminahn@outlook.com>"
+LABEL maintainer="Junmin Ahn"
 
 WORKDIR /app
 

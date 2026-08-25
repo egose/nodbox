@@ -6,13 +6,13 @@ spec:
   template:
     spec:
       containers:
-        - name: nodbox
-          image: ghcr.io/junminahn/nodbox:latest
-          imagePullPolicy: Always
-          args:
-            - |
-              console.log("hello world!");
-              return "200:Okay";
+      - name: nodbox
+        image: ghcr.io/junminahn/nodbox:latest
+        imagePullPolicy: Always
+        args:
+        - |
+          console.log("hello world!");
+          return "200:Okay";
       # imagePullSecrets:
       #   - name: gh-registry-config
       restartPolicy: Never

@@ -2,115 +2,35 @@ name: Release Workflow
 
 on:
   push:
-    branches:
-      - main
+    tags:
+    - v*.*.*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITHUB_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+  security-events: write
 
 jobs:
   release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        fetch-depth: 0
 
-      - name: Install release tools
-        run: |
-          npm install --global semtag@0.1.1
-
-          mkdir -p "$HOME/.local/bin"
-          cat > "$HOME/.local/bin/git-chglog" <<'EOF'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          exec docker run --rm \
-            -v "$PWD:/workdir" \
-            -w /workdir \
-            quay.io/git-chglog/git-chglog:0.14.2 "$@"
-          EOF
-
-          chmod +x "$HOME/.local/bin/git-chglog"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Detect release candidate
-        id: releaseMode
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          has_label=$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
-            --jq 'if any(.[]; any(.labels[]?; .name == "release_candidate")) then "true" else "false" end')
-
-          echo "is_release_candidate=$has_label" >> "$GITHUB_OUTPUT"
-
-      - name: Update Changelog
-        id: nextver
-        if: steps.releaseMode.outputs.is_release_candidate == 'false'
-        run: |
-          make changelog_next
-          nextver=$(make bump_next_version)
-          echo "value=$nextver" >> "$GITHUB_OUTPUT"
-
-      - name: Create Pull Request
-        if: steps.releaseMode.outputs.is_release_candidate == 'false'
-        id: releasePr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          branch="chore/release-${{ steps.nextver.outputs.value }}"
-          title="chore(${{ steps.nextver.outputs.value }}): bump version and update changelog"
-          body=$(cat <<'EOF'
-          - bump package version (${{ steps.nextver.outputs.value }})
-          - update changelog
-          EOF
-          )
-
-          if git diff --quiet; then
-            echo "created=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          git add CHANGELOG.md package.json
-          git commit -m "$title"
-          git push --set-upstream origin "$branch"
-
-          pr_url=$(gh pr create --base main --head "$branch" --title "$title" --body "$body")
-          pr_number=$(gh pr view "$pr_url" --json number --jq '.number')
-
-          gh pr edit "$pr_url" --add-label release_candidate
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/requested_reviewers" \
-            -f team_reviewers[]=owners \
-            -f team_reviewers[]=maintainers || true
-
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          echo "created=true" >> "$GITHUB_OUTPUT"
-          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
-          echo "url=$pr_url" >> "$GITHUB_OUTPUT"
-
-      - name: Push Tag
-        if: steps.releaseMode.outputs.is_release_candidate == 'true'
-        run: |
-          make release
-
-      - name: Get Version
-        id: lastver
-        if: steps.releaseMode.outputs.is_release_candidate == 'true'
-        run: |
-          lastver=$(semtag getlast)
-          echo "value=$lastver" >> "$GITHUB_OUTPUT"
-
-      - name: Release Tag
-        if: steps.releaseMode.outputs.is_release_candidate == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ steps.lastver.outputs.value }}" \
-            --title "${{ steps.lastver.outputs.value }}"
+    - name: Build and Push
+      uses: egose/actions/docker-build-push@799b388fb3497236093c6eb7e3eac0b4c8f956ce
+      with:
+        registry-url: ${{ env.GITHUB_REGISTRY }}
+        registry-username: ${{ github.actor }}
+        registry-password: ${{ secrets.GITHUB_TOKEN }}
+        image-name: ${{ env.IMAGE_NAME }}
