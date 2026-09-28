@@ -1,4 +1,4 @@
-name: Release Workflow
+name: Release
 
 on:
   push:
@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   packages: write
   security-events: write
@@ -28,9 +28,35 @@ jobs:
         fetch-depth: 0
 
     - name: Build and Push
-      uses: egose/actions/docker-build-push@799b388fb3497236093c6eb7e3eac0b4c8f956ce
+      uses: egose/actions/docker-build-push@71efad841d4b7bb6a479984abacf7111ebd44a16
       with:
         registry-url: ${{ env.GITHUB_REGISTRY }}
         registry-username: ${{ github.actor }}
         registry-password: ${{ secrets.GITHUB_TOKEN }}
         image-name: ${{ env.IMAGE_NAME }}
+
+    - name: Build Source Bundle
+      run: |
+        mkdir -p dist
+        tar -czf "dist/nodbox-${{ github.ref_name }}.tar.gz" \
+          Dockerfile \
+          entrypoint.js \
+          source.js \
+          job.yaml \
+          package.json \
+          README.md \
+          LICENSE \
+          CHANGELOG.md \
+          VERSION
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: nodbox-${{ github.ref_name }}
+        path: dist/*.tar.gz
+
+    - name: Release
+      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
+      with:
+        generate_release_notes: true
+        files: dist/*.tar.gz
