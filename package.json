@@ -5,6 +5,8 @@
   "main": "entrypoint.js",
   "scripts": {
     "test": "node --test",
+    "test:container": "node scripts/container-smoke.js",
+    "lint": "eslint .",
     "lint-fix": "eslint --fix .",
     "release": "release-it",
     "changelog": "repo-toolkit-changelog"
