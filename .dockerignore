@@ -1,1 +1,8 @@
-node_modules/
+# NB-05: default-deny build context. Allow only files needed for the image.
+# Dockerfile copies entrypoint.js and source.js; keep this list in sync
+# with the COPY instruction. Add future runtime modules here.
+*
+!Dockerfile
+!.dockerignore
+!entrypoint.js
+!source.js
