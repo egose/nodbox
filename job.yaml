@@ -3,17 +3,51 @@ kind: Job
 metadata:
   name: nodbox
 spec:
+  # Illustrative bounds: stop a hung job and clean up the finished object.
+  # Tune both values for the workload and cluster policy.
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 600
+  # Retry at most once. A retry re-executes the script from the start,
+  # so side effects must be idempotent; there is no exactly-once execution.
+  backoffLimit: 1
   template:
     spec:
+      restartPolicy: Never
+      # This workload does not call the Kubernetes API.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: nodbox
         image: ghcr.io/egose/nodbox:latest
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          # Illustrative sizing only. Measure the script and set requests/limits
+          # that fit the workload, namespace quota, and cluster policy.
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
         args:
         - |
+          await Promise.resolve();
           console.log("hello world!");
           return "200:Okay";
-      # imagePullSecrets:
-      #   - name: gh-registry-config
-      restartPolicy: Never
-  backoffLimit: 1

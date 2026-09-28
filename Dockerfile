@@ -4,7 +4,7 @@ LABEL maintainer="Junmin Ahn"
 
 WORKDIR /app
 
-COPY --chown=node:node entrypoint.js /app/entrypoint.js
+COPY --chown=node:node entrypoint.js source.js /app/
 
 USER node
 
