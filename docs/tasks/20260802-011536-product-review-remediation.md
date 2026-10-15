@@ -79,7 +79,7 @@ Completion evidence:
 
 - Changed: `entrypoint.js`, `test/entrypoint.test.js`, `README.md`, new `CHANGELOG.md`.
 - Delivered: testable `parseArgs`, help, usage exit 2, script exit 1, explicit argument separator/escape, fresh injected `args`, unchanged process arguments, documented contracts and compatibility notes.
-- Verified by isolated agent `ses_f1e0f8f60ffe9t6iBMoolK1G7H`: `node --test test/entrypoint.test.js` and `npm test` each passed 40/40; `npm exec --no -- eslint .`, changed-file Prettier check, and `git diff --check` passed.
+- Verified by NB-01 isolated verifier session: `node --test test/entrypoint.test.js` and `npm test` each passed 40/40; `npm exec --no -- eslint .`, changed-file Prettier check, and `git diff --check` passed.
 - npm checks used repository-local config/cache/TMPDIR overrides; task-owned caches removed. File/stdin delivery proceeds in NB-02.
 
 ### Task NB-02: Support mounted-file and stdin source delivery with bounded reads
@@ -120,7 +120,7 @@ Completion evidence:
 
 - Changed: `entrypoint.js`, `source.js` (new), `test/source.test.js` (new), `test/entrypoint.test.js`, `Dockerfile`, `README.md`, `CHANGELOG.md`; removed task-owned `.nb02-check/`.
 - Delivered: `--file`/`-` modes, 1 MiB UTF-8 bound across all modes with early stream destroy, exit 2 usage/content vs exit 1 read/script, filename-bearing diagnostics, runner-relative `require`, no implicit stdin read.
-- Verified by isolated agent `ses_f1e07de55ffe3ECjEWTRCBEqRS`: `npm test` 72/72 pass; `npm exec --no -- eslint .` pass; Prettier check pass after one line-wrap fix; `git diff --check` pass; help/missing-source probes exit without waiting on open stdin.
+- Verified by NB-02 isolated verifier session: `npm test` 72/72 pass; `npm exec --no -- eslint .` pass; Prettier check pass after one line-wrap fix; `git diff --check` pass; help/missing-source probes exit without waiting on open stdin.
 - Limitation: container build/run agreement deferred to NB-05/NB-06.
 
 ### Task NB-03: Turn deployment guidance into a bounded, hardened Job example
@@ -160,7 +160,7 @@ Completion evidence:
 
 - Changed: `job.yaml`, `README.md` Kubernetes guidance.
 - Delivered: numeric 1000:1000 non-root, `allowPrivilegeEscalation:false`, read-only root, drop ALL, RuntimeDefault seccomp, `automountServiceAccountToken:false`, illustrative resources/deadlines/TTL, idempotency and troubleshooting docs.
-- Verified by isolated agent `ses_f1e0521fbffeq7cBjqJGWQweom`: YAML parsed and README/Job fields match; `docker build` success; hardened `docker run` sample exits 0, UID/GID 1000:1000, read-only EROFS probe fails as expected; Prettier and `git diff --check` pass; image removed.
+- Verified by NB-03 isolated verifier session: YAML parsed and README/Job fields match; `docker build` success; hardened `docker run` sample exits 0, UID/GID 1000:1000, read-only EROFS probe fails as expected; Prettier and `git diff --check` pass; image removed.
 - Limitation: no cluster; quotas/PodSecurity/NetworkPolicy require cluster validation.
 
 ### Task NB-04: Restore useful static checks and runtime API regression coverage
@@ -200,7 +200,7 @@ Completion evidence:
 
 - Changed: `eslint.config.mjs`, `package.json` (`lint` script), new `test/runtime-api.test.js`.
 - Delivered: per-pattern globals with `no-undef` enabled, non-mutating lint, 7 API contract tests, no new runtime deps or import-time I/O.
-- Verified by isolated agent `ses_f1e0221e6ffeWo06SEpzo13N0s`: `npm test` 79/79 pass; `npm run lint` pass; stdin negative probe fails on `no-undef`; Prettier and `git diff --check` pass.
+- Verified by NB-04 isolated verifier session: `npm test` 79/79 pass; `npm run lint` pass; stdin negative probe fails on `no-undef`; Prettier and `git diff --check` pass.
 - Note: explicit context without `require` intentionally has no `require`; omitted context supplies runner `require`.
 
 ### Task NB-05: Verify the shipped container in CI and minimize its build context
@@ -242,7 +242,7 @@ Completion evidence:
 
 - Changed: `.dockerignore` allowlist, new `scripts/container-smoke.js`, `package.json` (`test:container`), `.github/workflows/test.yml`, `README.md` dev docs.
 - Delivered: 35→4 files / ~199k→6.5k B context, local image contains only `entrypoint.js`+`source.js`, explicit Docker-independent `npm test`, PR+push CI with read-only permissions and container smoke.
-- Verified by isolated agent `ses_f1dfc6ecaffekK63veAQTZx5RI`: `npm test` 79/79; `npm run lint` pass; `npm run test:container` pass; Prettier and `git diff --check` pass; fixtures cleaned, no push.
+- Verified by NB-05 isolated verifier session: `npm test` 79/79; `npm run lint` pass; `npm run test:container` pass; Prettier and `git diff --check` pass; fixtures cleaned, no push.
 - Limitation: docker context byte message not meaningful; cluster validation still outstanding.
 
 ### Task NB-06: Independently review integrated behavior and completion evidence
@@ -280,7 +280,7 @@ Verification: shared final checks and independent criterion-by-criterion review.
 
 Completion evidence:
 
-- Reviewed by isolated agent `ses_f1df30449ffePAyEawL0cqZvmK` with no code edits: `npm test` 79/79 pass; `npm run lint` pass with negative `no-undef` probe failing as intended; `npm run test:container` pass (10 smoke checks including hardened non-root/read-only); Prettier check pass; `git diff --check` pass; no leftover fixtures.
+- Reviewed by NB-06 isolated reviewer with no code edits: `npm test` 79/79 pass; `npm run lint` pass with negative `no-undef` probe failing as intended; `npm run test:container` pass (10 smoke checks including hardened non-root/read-only); Prettier check pass; `git diff --check` pass; no leftover fixtures.
 - Criterion review: NB-01–NB-05 each re-probed and pass; prior test-count growth 40→72→79 consistent; README Job matches `job.yaml`; image contains only `entrypoint.js`+`source.js`.
 - Recommendation: PASS with no blocking defects and no follow-up required. Residual limits: no real cluster validation, no supply-chain audit, no perf benchmark.
 
